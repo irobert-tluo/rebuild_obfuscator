@@ -5,9 +5,9 @@ class Util:
     def distinct(samples):
         noDupes = {}
         for i in samples:
-            if not i["encoded"] in noDupes:
+            if i["encoded"] not in noDupes:
                 noDupes[i["encoded"]]=i
-        return noDupes.keys()
+        return noDupes.values()
 
     @staticmethod
     def sort_by_date(self, data_set):
@@ -19,6 +19,8 @@ class Util:
         if max_len == 0:
             return 0
         dist = editdistance.eval(a1, b1)
+        if dist > max_len:
+          print dist
         return 1.0 - (float(dist)/float(max_len))
 
     @staticmethod
@@ -26,20 +28,22 @@ class Util:
         return filter(lambda d: d["id"] in grp_map, data_set)
 
 class Variant:
-    def cluster(self, data_set, threshold):
+    def cluster(self, data_set, threshold, verbose=True):
         prev_map = {}
         grp_id = 0
         for index in range(len(data_set)):
             sample = data_set[index]
-            print sample["id"]
+            if not verbose:
+                print "[+] Processing Sample:", sample["id"]
             scores = {prev["id"] : Util.simscore(sample["encoded"], prev["encoded"]) for prev in data_set[:index]}
             if len(scores) > 0 and max(scores.values()) > threshold:
-              closest = max(scores.iteritems(), key=operator.itemgetter(1))[0]
-              print "Closet:", closest
-              cur_grp_id = prev_map[closest]
+                closest = max(scores.iteritems(), key=operator.itemgetter(1))[0]
+                if not verbose:
+                   print "[+] Found Closet Cluster:", closest
+                cur_grp_id = prev_map[closest]
             else:
-              grp_id += 1
-              cur_grp_id = grp_id
+                grp_id += 1
+                cur_grp_id = grp_id
             prev_map[sample["id"]] = cur_grp_id
         grp_info = {}
         for sid, gid in prev_map.iteritems():
@@ -53,12 +57,13 @@ class Variant:
             print gid, "\n\t", gdata
 
 class Version:
-    def cluster(self, data_set, threshold):
+    def cluster(self, data_set, threshold, verbose=True):
         grp_map = {}
         grp_id = 0
         for index in range(len(data_set)):
             sample = data_set[index]
-            print sample["id"]
+            if not verbose:
+                print "[+] Processing Sample:", sample["id"]
             scores = {}
             for prev_grp_id, prev_grp_data in grp_map.iteritems():
               scores[prev_grp_id] = min([Util.simscore(sample["encoded"], prev["encoded"]) for prev in prev_grp_data])
@@ -68,9 +73,15 @@ class Version:
                 grp_map[cur_grp_id] = []
             else:
                 cur_grp_id = max(scores.iteritems(), key=operator.itemgetter(1))[0]
-                print "Closet:", cur_grp_id
+            if not verbose:
+                print "[+] Found Closet Cluster:", cur_grp_id
             grp_map[cur_grp_id].append(sample)
         grp_info = {}
         for prev_grp_id, prev_grp_data in grp_map.iteritems():
             grp_info[prev_grp_id] = [prev["id"] for prev in prev_grp_data]
         return grp_info 
+
+
+    def pretty_print_grp(self, grp_map):
+        for gid, gdata in grp_map.iteritems():
+            print gid, "\n\t", gdata
